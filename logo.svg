@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 180" role="img" aria-labelledby="title desc">
+<title id="title">JÈKULU</title><desc id="desc">Monogramme JK, motif collectif, couleurs inspirées du Faso Dan Fani</desc>
+<defs><pattern id="woven" width="15" height="15" patternUnits="userSpaceOnUse"><rect width="15" height="15" fill="#bd6137"/><path d="M0 3H15 M0 10H15" stroke="#f5e4c7" stroke-width="1.5"/><path d="M4 0V15 M11 0V15" stroke="#252523" stroke-width="2"/></pattern></defs>
+<circle cx="82" cy="84" r="65" fill="none" stroke="#bb693e" stroke-width="6"/><circle cx="82" cy="84" r="56" fill="none" stroke="#e3bb75" stroke-width="2"/>
+<path d="M47 42V105Q47 127 66 127Q83 127 83 109V40" fill="none" stroke="#252523" stroke-width="11" stroke-linecap="round"/>
+<path d="M100 43V124M104 83L132 44M104 83L134 123" fill="none" stroke="#bd6137" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="77" cy="145" r="3.5" fill="#bb693e"/><circle cx="89" cy="145" r="3.5" fill="#bb693e"/><circle cx="101" cy="145" r="3.5" fill="#bb693e"/>
+<text x="170" y="93" font-family="Georgia, 'Times New Roman', serif" font-size="65" letter-spacing="5" fill="#242321" font-weight="bold">JÈKULU</text>
+<path d="M171 109H521" stroke="#bd6137" stroke-width="2"/>
+<text x="173" y="136" font-family="Arial, sans-serif" font-size="16" letter-spacing=".5" fill="#765a46">Ensemble, épargnons. Ensemble, avançons.</text>
+</svg>

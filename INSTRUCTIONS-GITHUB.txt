@@ -1,0 +1,9 @@
+JEKULU — GitHub Pages
+
+1. Creez un depot public jekulu sur GitHub.
+2. Decompressez ce ZIP.
+3. Envoyez index.html, manifest.json, sw.js, logo.svg, icon-192.png, icon-512.png, .nojekyll dans la racine du depot.
+4. Settings > Pages > Source: Deploy from a branch > main > /(root) > Save.
+5. URL : https://VOTRE_IDENTIFIANT.github.io/jekulu/
+
+IMPORTANT : prototype local sans comptes ni synchronisation; ne pas utiliser pour la gestion financiere reelle.
