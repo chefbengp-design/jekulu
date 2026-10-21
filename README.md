@@ -1,1 +1,1 @@
-# jekulu
+# jekuluApplication JÈKULU — Gestion des tontines.
