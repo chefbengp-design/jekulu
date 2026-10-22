@@ -358,4 +358,62 @@ render = function () {
     () => task(async () => {});
 };
 
+// JÈKULU — rappels WhatsApp manuels
+const jekuluRenderAvantRappels = render;
+
+render = function () {
+  jekuluRenderAvantRappels();
+  if (!user || !g() || view !== 'suivi' || !manager()) return;
+
+  const carte = document.querySelector('#view-content .card');
+  if (!carte) return;
+
+  const t = g();
+  const tour = Number(t.current_round);
+  const montant = Number(t.contribution_amount);
+
+  const lignes = members.map(m => {
+    const verse = contrib.filter(p =>
+      p.member_id === m.id &&
+      Number(p.round_number) === tour
+    ).reduce((total, p) => total + Number(p.amount), 0);
+
+    return {
+      nom: memberName(m.id),
+      reste: Math.max(0, montant - verse)
+    };
+  }).filter(x => x.reste > 0);
+
+  const bloc = document.createElement('div');
+  bloc.className = 'card';
+
+  bloc.innerHTML =
+    '<h3>Rappels WhatsApp</h3>' +
+    '<p class="muted">Vérifiez les paiements avant ' +
+    'de contacter un membre. Aucun envoi automatique.</p>' +
+    (lignes.length ? lignes.map(x => {
+      const message =
+        'Bonjour ' + x.nom +
+        ', rappel amical pour la tontine ' + t.name +
+        ' (tour ' + tour + '). Il reste ' +
+        money(x.reste) +
+        ' à régler selon le suivi JÈKULU. ' +
+        'Si vous avez déjà payé, merci de le signaler ' +
+        'au responsable.';
+
+      const lien = 'https://wa.me/?text=' +
+        encodeURIComponent(message);
+
+      return '<div class="listrow"><div><b>' +
+        esc(x.nom) + '</b>' +
+        '<div class="sub">Reste : ' +
+        money(x.reste) + '</div></div>' +
+        '<a target="_blank" rel="noopener noreferrer" href="' +
+        lien + '">Ouvrir WhatsApp</a></div>';
+    }).join('') :
+    '<p>Toutes les cotisations sont complètes pour ce tour.</p>');
+
+  carte.after(bloc);
+};
+
 </script></body></html>
