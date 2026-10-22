@@ -67,4 +67,62 @@ render = function () {
     `Ne considérez pas cet ordre comme validé sans accord du groupe.</p>` +
     (rows || '<p>Aucun membre.</p>') + `</div>`;
 };
+  // JÈKULU — fréquence et date de démarrage des tontines
+const jekuluBindMainBase = bindMain;
+bindMain = function () {
+  jekuluBindMainBase();
+  const create = document.getElementById('new-group');
+  if (create) create.onclick = () => promptForm('Nouvelle tontine',
+    '<label>Nom de la tontine</label><input name="name" required minlength="2" maxlength="120">' +
+    '<label>Montant de cotisation (FCFA)</label><input name="amount" type="number" min="1" step="1" required>' +
+    '<label>Fréquence</label><select name="frequency" required><option value="daily">Journalière</option><option value="weekly">Hebdomadaire</option><option value="monthly" selected>Mensuelle</option></select>' +
+    '<label>Date de démarrage</label><input name="start_date" type="date" required>' +
+    '<label>Description (facultatif)</label><textarea name="description" rows="2"></textarea>',
+    async f => { check(await db.from('jekulu_tontines').insert({
+      name:f.name.trim(), contribution_amount:Number(f.amount),
+      description:f.description.trim(), frequency:f.frequency,
+      start_date:f.start_date
+    }).select('id').single()); });
+  const next = document.getElementById('next-round');
+  if (next && g()) {
+    const t = g();
+    const b = document.createElement('button');
+    b.className = 'secondary';
+    b.textContent = 'Configurer le calendrier';
+    b.style.marginRight = '8px';
+    b.onclick = () => promptForm('Configurer le calendrier',
+      '<label>Fréquence</label><select name="frequency" required>' +
+      ['daily','weekly','monthly'].map((v,i) =>
+        `<option value="${v}" ${t.frequency===v?'selected':''}>${['Journalière','Hebdomadaire','Mensuelle'][i]}</option>`).join('') +
+      '</select><label>Date de démarrage</label>' +
+      `<input name="start_date" type="date" value="${t.start_date||''}" required>`,
+      async f => { check(await db.from('jekulu_tontines').update({
+        frequency:f.frequency, start_date:f.start_date
+      }).eq('id',t.id)); });
+    next.before(b);
+  }
+};
+
+// Afficher les dates prévues dans le calendrier existant
+const jekuluRenderWithCalendar = render;
+render = function () {
+  jekuluRenderWithCalendar();
+  const t = g();
+  if (view !== 'calendar' || !t || !t.start_date) return;
+  const [year,month,day] = t.start_date.split('-').map(Number);
+  const dates = document.querySelectorAll('#view-content .listrow .sub');
+  dates.forEach((el,i) => {
+    const d = new Date(Date.UTC(year,month-1,day));
+    if (t.frequency === 'daily') d.setUTCDate(d.getUTCDate()+i);
+    else if (t.frequency === 'weekly') d.setUTCDate(d.getUTCDate()+7*i);
+    else {
+      const m = month-1+i;
+      const last = new Date(Date.UTC(year,m+1,0)).getUTCDate();
+      d.setUTCFullYear(year,m,Math.min(day,last));
+    }
+    el.textContent = 'Date prévue : ' + d.toLocaleDateString('fr-FR',
+      {day:'2-digit',month:'long',year:'numeric',timeZone:'UTC'});
+  });
+};
+
 </script></body></html>
