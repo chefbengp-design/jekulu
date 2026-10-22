@@ -124,5 +124,93 @@ render = function () {
       {day:'2-digit',month:'long',year:'numeric',timeZone:'UTC'});
   });
 };
+// JÈKULU — ordre des bénéficiaires, enregistré dans Supabase
+const jekuluRenderAvantOrdre = render;
+let jekuluOrdreBrouillon = null;
+let jekuluOrdreTontine = null;
+render = function () {
+  jekuluRenderAvantOrdre();
+  const t = g();
+  if (!user || !t || view !== 'calendar') return;
+  const zone = document.getElementById('view-content');
+  if (!zone) return;
+  if (jekuluOrdreTontine !== t.id) {
+    jekuluOrdreTontine = t.id;
+    jekuluOrdreBrouillon = null;
+  }
+  const membresTries = [...members].sort((a,b) =>
+    new Date(a.joined_at) - new Date(b.joined_at));
+  const ids = membresTries.map(m => m.id);
+  const enregistres = Array.isArray(t.rotation_order) ? t.rotation_order : [];
+  const ordreValide = [...new Set(enregistres.filter(id => ids.includes(id)))];
+  const ordreInitial = [...ordreValide, ...ids.filter(id => !ordreValide.includes(id))];
+  const modification = Array.isArray(jekuluOrdreBrouillon);
+  const ordre = modification ? jekuluOrdreBrouillon.filter(id => ids.includes(id)) : ordreInitial;
+  ids.forEach(id => { if (!ordre.includes(id)) ordre.push(id); });
+  const datePrevue = i => {
+    if (!t.start_date) return 'Date à définir';
+    const [y,m,j] = t.start_date.split('-').map(Number);
+    const d = new Date(Date.UTC(y,m-1,j));
+    if (t.frequency === 'daily') d.setUTCDate(d.getUTCDate()+i);
+    else if (t.frequency === 'weekly') d.setUTCDate(d.getUTCDate()+7*i);
+    else {
+      const mois = m-1+i;
+      const dernier = new Date(Date.UTC(y,mois+1,0)).getUTCDate();
+      d.setUTCFullYear(y,mois,Math.min(j,dernier));
+    }
+    return 'Date prévue : ' + d.toLocaleDateString('fr-FR',
+      {day:'2-digit',month:'long',year:'numeric',timeZone:'UTC'});
+  };
+  const lignes = ordre.map((id,i) => {
+    const m = members.find(x => x.id === id);
+    if (!m) return '';
+    const tour = i+1;
+    const versement = payouts.find(p => Number(p.round_number) === tour);
+    const statut = versement ?
+      (versement.member_id === id ? 'Remise enregistrée' : 'Remise à vérifier') :
+      tour === Number(t.current_round) ? 'Tour actuel' :
+      tour < Number(t.current_round) ? 'Tour passé — à vérifier' : 'À venir';
+    const commandes = modification ?
+      `<div class="stack"><button type="button" class="secondary" data-monte="${i}" ${i===0?'disabled':''}>↑</button>`+
+      `<button type="button" class="secondary" data-descend="${i}" ${i===ordre.length-1?'disabled':''}>↓</button></div>` : '';
+    return `<div class="listrow"><div><b>Tour ${tour} — ${esc(memberName(id))}</b>`+
+      `<div class="sub">${esc(datePrevue(i))}</div></div><span class="pill">${esc(statut)}</span>${commandes}</div>`;
+  }).join('');
+  const actions = owner() ?
+    (modification ? '<div class="stack"><button id="jekulu-save-order">Enregistrer l’ordre</button><button class="secondary" id="jekulu-cancel-order">Annuler</button></div>' :
+    '<button id="jekulu-edit-order">Modifier l’ordre des bénéficiaires</button>') : '';
+  zone.innerHTML = `<div class="card"><h2>Calendrier des bénéficiaires</h2>`+
+    `<p class="muted">Ordre ${ordreValide.length?'enregistré':'provisoire (ancienneté d’adhésion)'}. `+
+    `Les dates sont prévisionnelles et les remises doivent être confirmées séparément.</p>`+
+    `${lignes || '<p>Aucun membre.</p>'}<div class="spacer"></div>${actions}</div>`;
+  const modifier = document.getElementById('jekulu-edit-order');
+  if (modifier) modifier.onclick = () => { jekuluOrdreBrouillon = [...ordreInitial]; render(); };
+  const annuler = document.getElementById('jekulu-cancel-order');
+  if (annuler) annuler.onclick = () => { jekuluOrdreBrouillon = null; render(); };
+  zone.querySelectorAll('[data-monte]').forEach(b => b.onclick = () => {
+    const i = Number(b.dataset.monte);
+    if (i < 1) return;
+    [jekuluOrdreBrouillon[i-1],jekuluOrdreBrouillon[i]] =
+      [jekuluOrdreBrouillon[i],jekuluOrdreBrouillon[i-1]];
+    render();
+  });
+  zone.querySelectorAll('[data-descend]').forEach(b => b.onclick = () => {
+    const i = Number(b.dataset.descend);
+    if (i >= jekuluOrdreBrouillon.length-1) return;
+    [jekuluOrdreBrouillon[i],jekuluOrdreBrouillon[i+1]] =
+      [jekuluOrdreBrouillon[i+1],jekuluOrdreBrouillon[i]];
+    render();
+  });
+  const sauver = document.getElementById('jekulu-save-order');
+  if (sauver) sauver.onclick = () => {
+    if (!confirm('Valider cet ordre des bénéficiaires pour tous les membres ?')) return;
+    const valeur = [...jekuluOrdreBrouillon];
+    task(async () => {
+      check(await db.from('jekulu_tontines').update({rotation_order:valeur}).eq('id',t.id));
+      jekuluOrdreBrouillon = null;
+      notice = 'Ordre des bénéficiaires enregistré.';
+    });
+  };
+};
 
 </script></body></html>
