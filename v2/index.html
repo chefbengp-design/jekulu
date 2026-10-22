@@ -36,4 +36,35 @@ const pay=$('add-payment');if(pay)pay.onclick=()=>promptForm('Enregistrer une co
 const out=$('add-payout');if(out)out.onclick=()=>promptForm('Confirmer une remise',`<p class="note">Confirmez uniquement une remise réellement effectuée. Une seule remise par tour.</p><label>Bénéficiaire</label><select name="member_id" required>${memberOptions()}</select><label>Tour</label><input name="round" type="number" min="1" value="${g().current_round}" required><label>Montant remis (FCFA)</label><input name="amount" type="number" min="1" step="1" required><label>Note</label><input name="note" maxlength="200">`,async f=>{check(await db.from('jekulu_payouts').insert({tontine_id:selected,member_id:f.member_id,round_number:Number(f.round),amount:Number(f.amount),note:f.note.trim()||null}))});
 const inv=$('invite-code');if(inv)inv.onclick=()=>task(async()=>{const code=check(await db.rpc('jekulu_invite_code',{p_tontine:selected}));notice='Code à communiquer uniquement aux membres invités : '+code;render()});const next=$('next-round');if(next)next.onclick=()=>{if(!confirm('Ouvrir le tour suivant ? Vérifiez les cotisations et la remise du tour actuel.'))return;task(async()=>{check(await db.from('jekulu_tontines').update({current_round:g().current_round+1}).eq('id',selected))})}}
 (async()=>{const r=await db.auth.getUser();user=r.data?.user||null;if(user){try{await ensureProfile();await load()}catch(e){alertMsg(e.message)}}else render()})();db.auth.onAuthStateChange((event,session)=>{const newUser=session?.user||null;if(event==='PASSWORD_RECOVERY'){setTimeout(()=>promptForm('Définir un nouveau mot de passe','<label>Nouveau mot de passe (au moins 8 caractères)</label><input name="password" type="password" minlength="8" required>',async f=>{check(await db.auth.updateUser({password:f.password}));notice='Mot de passe modifié.'}),0)}if(newUser?.id!==user?.id){user=newUser;if(user){setTimeout(()=>{ensureProfile().then(load).catch(e=>alertMsg(e.message))},0)}else{groups=[];selected=null;render()}}});if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+// JÈKULU — calendrier prévisionnel des bénéficiaires (lecture seule)
+const jekuluRenderOriginal = render;
+render = function () {
+  jekuluRenderOriginal();
+  if (!user || !g()) return;
+  const menu = document.querySelector('.menu');
+  if (!menu) return;
+  const btn = document.createElement('button');
+  btn.textContent = 'Calendrier';
+  btn.className = view === 'calendar' ? 'active' : '';
+  btn.onclick = () => { view = 'calendar'; render(); };
+  menu.appendChild(btn);
+  if (view !== 'calendar') return;
+  const t = g();
+  const list = [...members].sort((a, b) =>
+    new Date(a.joined_at) - new Date(b.joined_at));
+  const rows = list.map((m, i) => {
+    const tour = i + 1;
+    const done = payouts.some(p => Number(p.round_number) === tour);
+    const status = done ? 'Remise enregistrée' :
+      tour === Number(t.current_round) ? 'Tour actuel' :
+      tour < Number(t.current_round) ? 'Tour passé — à vérifier' : 'À venir';
+    return `<div class="listrow"><div><b>Tour ${tour} — ${esc(memberName(m.id))}</b><div class="sub">Date à définir</div></div><span class="pill">${status}</span></div>`;
+  }).join('');
+  document.getElementById('view-content').innerHTML =
+    `<div class="card"><h2>Calendrier des bénéficiaires</h2>` +
+    `<p class="muted">Ordre prévisionnel selon l'ancienneté d'adhésion. ` +
+    `Les dates et la fréquence ne sont pas encore configurées. ` +
+    `Ne considérez pas cet ordre comme validé sans accord du groupe.</p>` +
+    (rows || '<p>Aucun membre.</p>') + `</div>`;
+};
 </script></body></html>
