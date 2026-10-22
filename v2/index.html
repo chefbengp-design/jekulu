@@ -212,5 +212,60 @@ render = function () {
     });
   };
 };
+// JÈKULU — préparation du tour suivant avec contrôle de l'administrateur
+// À placer avant </script>, après les extensions précédentes.
+const jekuluBindMainAvantRotation = bindMain;
+bindMain = function () {
+  jekuluBindMainAvantRotation();
+  const suivant = document.getElementById('next-round');
+  const t = g();
+  if (!suivant || !t || !owner()) return;
+
+  const membresParDate = [...members].sort((a,b) =>
+    new Date(a.joined_at) - new Date(b.joined_at));
+  const idsExistants = membresParDate.map(m => m.id);
+  const enregistres = Array.isArray(t.rotation_order) ? t.rotation_order : [];
+  const ordre = [...new Set(enregistres.filter(id => idsExistants.includes(id)))];
+  idsExistants.forEach(id => { if (!ordre.includes(id)) ordre.push(id); });
+
+  const tour = Number(t.current_round);
+  const actuelId = ordre[tour - 1];
+  const prochainId = ordre[tour];
+  const collecte = contrib.filter(p => Number(p.round_number) === tour)
+    .reduce((total,p) => total + Number(p.amount), 0);
+  const objectif = Number(t.contribution_amount) * members.length;
+  const remisesTour = payouts.filter(p => Number(p.round_number) === tour);
+  const remiseCorrecte = !!actuelId && remisesTour.length === 1 &&
+    remisesTour[0].member_id === actuelId;
+
+  const information = document.createElement('div');
+  information.className = 'note';
+  information.style.marginBottom = '12px';
+  information.innerHTML = '<b>Rotation des bénéficiaires</b>' +
+    '<p>Tour actuel : ' + tour + ' — ' + (actuelId ? esc(memberName(actuelId)) : 'non défini') + '</p>' +
+    '<p>Prochain bénéficiaire : <b>' + (prochainId ? esc(memberName(prochainId)) : 'Fin du cycle') + '</b></p>' +
+    '<p>Cotisations du tour : ' + money(collecte) + ' / ' + money(objectif) + '</p>' +
+    '<p>Remise au bénéficiaire actuel : ' +
+    (remiseCorrecte ? 'enregistrée' : 'non confirmée ou à vérifier') + '</p>' +
+    '<p>Le passage au tour suivant reste soumis à votre validation.</p>';
+  suivant.before(information);
+  suivant.textContent = 'Valider et ouvrir le tour suivant';
+  suivant.disabled = !prochainId;
+  suivant.onclick = () => {
+    if (!prochainId) return alertMsg('Le cycle est terminé.');
+    if (collecte < objectif) return alertMsg('Impossible : cotisations du tour incomplètes.');
+    if (!remiseCorrecte) return alertMsg('Impossible : confirmez d’abord la remise au bénéficiaire prévu pour ce tour.');
+    if (!confirm('Confirmer la clôture du tour ' + tour +
+      ' et ouvrir le tour ' + (tour + 1) + ' pour ' + memberName(prochainId) + ' ?')) return;
+    task(async () => {
+      const r = await db.from('jekulu_tontines')
+        .update({current_round:tour + 1})
+        .eq('id',t.id).eq('current_round',tour).select('id');
+      check(r);
+      if (!r.data || r.data.length !== 1)
+        throw Error('Le tour a déjà changé. Actualisez JÈKULU.');
+    });
+  };
+};
 
 </script></body></html>
