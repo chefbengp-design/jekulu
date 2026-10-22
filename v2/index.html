@@ -268,4 +268,94 @@ bindMain = function () {
   };
 };
 
+// JÈKULU — suivi individuel des cotisations
+let jekuluSuiviFiltre = 'tous';
+const jekuluRenderAvantSuivi = render;
+
+render = function () {
+  jekuluRenderAvantSuivi();
+  if (!user || !g()) return;
+
+  const menu = document.querySelector('.menu');
+  if (!menu) return;
+
+  const bouton = document.createElement('button');
+  bouton.textContent = 'Suivi des cotisations';
+  bouton.className = view === 'suivi' ? 'active' : '';
+  bouton.onclick = () => {
+    view = 'suivi';
+    render();
+  };
+  menu.appendChild(bouton);
+
+  if (view !== 'suivi') return;
+
+  const t = g();
+  const tour = Number(t.current_round);
+  const montant = Number(t.contribution_amount);
+  const versements = contrib.filter(
+    p => Number(p.round_number) === tour
+  );
+
+  const bilan = members.map(m => {
+    const paye = versements
+      .filter(p => p.member_id === m.id)
+      .reduce((s, p) => s + Number(p.amount), 0);
+    const reste = Math.max(0, montant - paye);
+    const statut = paye > montant ? 'Excédent à vérifier' :
+      paye >= montant ? 'Complet' :
+      paye > 0 ? 'Partiel' : 'Non versé';
+    return {nom:memberName(m.id), paye, reste, statut};
+  });
+
+  const complet = bilan.filter(
+    x => x.statut === 'Complet'
+  ).length;
+  const recu = bilan.reduce((s,x) => s + x.paye, 0);
+  const objectif = montant * bilan.length;
+  const visible = jekuluSuiviFiltre === 'manquants'
+    ? bilan.filter(x =>
+        x.reste > 0 || x.statut === 'Excédent à vérifier')
+    : bilan;
+
+  const lignes = visible.map(x =>
+    `<div class="listrow"><div><b>${esc(x.nom)}</b>` +
+    `<div class="sub">Versé : ${money(x.paye)} · ` +
+    `Reste : ${money(x.reste)}</div></div>` +
+    `<span class="pill">${esc(x.statut)}</span></div>`
+  ).join('');
+
+  const zone = document.getElementById('view-content');
+  if (!zone) return;
+
+  zone.innerHTML =
+    `<div class="card"><h2>Suivi des cotisations</h2>` +
+    `<p class="muted">Tour n° ${tour} · ` +
+    `Cotisation par membre : ${money(montant)}</p>` +
+    `<p><b>${complet} / ${bilan.length}</b> ` +
+    `membres ont payé exactement leur cotisation.</p>` +
+    `<p><b>Collecté :</b> ${money(recu)} / ${money(objectif)}</p>` +
+    `<div class="stack">` +
+    `<button id="suivi-tous">Tous</button>` +
+    `<button id="suivi-manquants" class="secondary">` +
+    `À vérifier / compléter</button>` +
+    `<button id="suivi-refresh" class="secondary">` +
+    `Actualiser</button></div>` +
+    `<div class="spacer"></div>` +
+    (lignes || '<p>Aucun membre dans cette catégorie.</p>') +
+    `<p class="muted">Données déclaratives, non vérifiées ` +
+    `auprès d'une banque ou d'un opérateur mobile.</p></div>`;
+
+  document.getElementById('suivi-tous').onclick = () => {
+    jekuluSuiviFiltre = 'tous';
+    render();
+  };
+  document.getElementById('suivi-manquants').onclick = () => {
+    jekuluSuiviFiltre = 'manquants';
+    render();
+  };
+  document.getElementById('suivi-refresh').onclick =
+    () => task(async () => {});
+};
+
 </script></body></html>
